@@ -13,6 +13,6 @@ When run this playbook will..
 * Install [netdata](https://www.netdata.cloud/) for server monitoring (dashboard available on server port 19999)
 
 ### Usage
-To use, install ansible on your local machine and run `ansible-playbook <path_to_file>` with either `-k` or `--private-key` arguments supplied for password or private key ssh authentication respectively.  The playbook will prompt for the input of the user account to connect with, and the target server to configure.
+To use, install ansible on your local machine and run `ansible-playbook <path_to_file>` with either `-k` (password prompt) or `--private-key` arguments supplied for password or private key authentication respectively.  The playbook will prompt for the input of the user account to connect with, and the target server to configure.
 
-**Note**: the user you are connecting with must have sudo rights on the server.
+**Note**: the user you are connecting with must have sudo rights on the server.  If a password is required to use sudo on your server then you must also supply the `-K` argument to prompt for your sudo password.
