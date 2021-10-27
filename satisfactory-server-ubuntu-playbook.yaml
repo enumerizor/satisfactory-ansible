@@ -1,0 +1,141 @@
+---
+- hosts: localhost
+  gather_facts: false
+  vars_prompt:
+    - name: remote_user
+      prompt: Enter username with sudo rights on the server
+      private: no
+    - name: target_server
+      prompt: Enter hostname or ip of satisfactory server
+      private: no
+  pre_tasks:
+    - name: Add target hosts
+      add_host:
+        name: "{{ target_server }}"
+        group: target_group
+
+- hosts: target_group
+  become: yes
+  become_method: sudo
+  tasks:
+
+  - name: Verify target is Ubuntu server
+    assert:
+      that: "ansible_distribution == 'Ubuntu'"
+      fail_msg: "OS other than Ubuntu detected.  This playbook has only been verified to work on Ubuntu systems.  Modifications will likely be necessary for other distributions.  Comment or remove lines 22 - 25 to bypass this check."
+
+  - name: Enable 32 bit architecture
+    lineinfile:
+      path: /var/lib/dpkg/arch
+      line: i386
+      insertafter: EOF
+      state: present
+
+  - name: Install dependancies
+    apt:
+      name:
+        - lib32gcc1
+        - steamcmd
+        - netdata
+      state: present
+      update_cache: yes    
+
+  - name: create steam group
+    group: 
+      name: steam
+
+  - name: Create steam user
+    user:
+      name: steam
+      group: steam
+
+  - name: Link steamcmd executable
+    file:
+      src: /usr/games/steamcmd
+      dest: /home/steam/steamcmd
+      state: link
+      owner: steam
+      group: steam
+      mode: 0774
+
+  - name: Create installation directory
+    file:
+      dest: /home/steam/SatisfactoryDedicatedServer
+      owner: steam
+      group: steam
+      mode: 0764
+      state: directory
+
+  - name: Create Satisfactory server start script
+    copy:
+      content: |
+        #!/bin/bash
+
+        export InstallationDir=/home/steam/SatisfactoryDedicatedServer
+        export templdpath=$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=$InstallationDir/linux64:$LD_LIBRARY_PATH
+        # Install or update the server before launching it
+        /usr/games/steamcmd +login anonymous +force_install_dir $InstallationDir +app_update 1690800 validate +quit
+        # Launch the server
+        $InstallationDir/FactoryServer.sh
+
+        export LD_LIBRARY_PATH=$templdpath
+      dest: /home/steam/SatisfactoryDedicatedServer/start_server.sh
+      owner: steam
+      group: steam
+      mode: 0774
+  
+  - name: Create systemd service file
+    copy:
+      content: |
+        [Unit]
+        Description=Satisfactory Server
+        Wants=network.target
+        After=syslog.target network-online.target
+
+        [Service]
+        Type=simple
+        Restart=on-failure
+        RestartSec=10
+        User=steam
+        WorkingDirectory=/home/steam/SatisfactoryDedicatedServer
+        ExecStart=/home/steam/SatisfactoryDedicatedServer/start_server.sh
+
+        [Install]
+        WantedBy=multi-user.target
+      dest: /etc/systemd/system/satisfactory.service
+      owner: root
+      group: root
+      mode: 0660
+    register: satisfactory_service
+  
+  - name: Reload systemd if service file is changed
+    systemd:
+      daemon_reload: yes
+    when: satisfactory_service.changed
+
+  - name: Netdata allow external connections on port 19999
+    lineinfile:
+      path: /etc/netdata/netdata.conf
+      regexp: '^\s*bind socket to IP ='
+      line: "        bind socket to IP = {{ ansible_facts['default_ipv4']['address'] }}"
+      state: present
+    register: netdata_config
+
+  - name: Restart netdata if config file changes
+    systemd:
+      name: netdata
+      state: restarted
+    when: netdata_config.changed
+
+  - name: Enable satisfactory service
+    systemd:
+      name: satisfactory.service
+      enabled: yes
+      state: started
+
+  - name: Schedule cron job for satisfactory server restart
+    cron:
+      name: Restart satisfactory server service 
+      job: systemctl restart satisfactory.service
+      hour: '4'
