@@ -8,7 +8,7 @@ It has been tested on a fresh installation of Ubuntu server 20.04 and uses ansib
 When run this playbook will..
 
 * Install and configure steamcmd
-* Create a systemd service which both runs a Satisfactory dedicated server and uses steam cmd to keep it up to date
+* Create a systemd service which both runs a Satisfactory dedicated server and uses steamcmd to keep it up to date
 * Create a cron job to restart the service daily at 4 am local server time
 * Install [netdata](https://www.netdata.cloud/) for server monitoring (dashboard available on server port 19999)
 
