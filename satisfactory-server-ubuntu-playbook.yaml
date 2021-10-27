@@ -25,11 +25,16 @@
       fail_msg: "OS other than Ubuntu detected.  This playbook has only been verified to work on Ubuntu systems.  Modifications will likely be necessary for other distributions.  Comment or remove lines 22 - 25 to bypass this check."
 
   - name: Enable 32 bit architecture
-    lineinfile:
-      path: /var/lib/dpkg/arch
-      line: i386
-      insertafter: EOF
-      state: present
+    command: 
+      cmd: dpkg --add-architecture i386
+      creates: /var/lib/dpkg/arch
+
+  - name: Accept steamcmd license
+    debconf:
+      name: "steam"
+      question: "steam/question"
+      value: "I AGREE"
+      vtype: "select"
 
   - name: Install dependancies
     apt:
