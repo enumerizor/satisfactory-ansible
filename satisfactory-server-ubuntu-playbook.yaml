@@ -139,6 +139,12 @@
       enabled: yes
       state: started
 
+  - name: Enable netdata service
+    systemd:
+      name: netdata.service
+      enabled: yes
+      state: started
+
   - name: Schedule cron job for satisfactory server restart
     cron:
       name: Restart satisfactory server service 
